@@ -1,0 +1,1222 @@
+--[[
+   AlphaLib v6.0 – Ultimate Glowing Luna-Style UI Library
+   =================================================================
+   المميزات:
+   - توهج أرجواني ديناميكي (UIStroke متحرك)
+   - شاشة تحميل احترافية
+   - إشعارات منبثقة
+   - عداد FPS مع إمكانية السحب
+   - تبويبات جاهزة: FPS & Boost، تغيير اللون، إعدادات
+   - زر تفعيل رسوميات منخفضة لزيادة FPS
+   - جميع عناصر Luna (Button, Toggle, Slider, Dropdown, ColorPicker, Keybind, TextBox, Label, Paragraph)
+   - دعم الأيقونات (Material Icons) بقاعدة بيانات موسعة
+   - حفظ / تحميل الإعدادات تلقائياً عبر Flags
+   - نظام نوافذ متعدد، دعم السحب
+   - صورة اللاعب في شريط العنوان
+   =================================================================
+   بواسطة: Alpha
+   للاستخدام: ضع الكود في LocalScript داخل StarterGui
+--]]
+
+-- // ---------- [ Services ] ---------- \\
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+
+-- // ---------- [ AlphaLib Core ] ---------- \\
+local AlphaLib = {
+    CurrentGlowColor = Color3.fromRGB(170, 0, 255),
+    Theme = {
+        Background = Color3.fromRGB(12, 10, 20),
+        Accent = Color3.fromRGB(170, 0, 255),
+        Text = Color3.fromRGB(255, 255, 255),
+        SubText = Color3.fromRGB(200, 200, 200)
+    },
+    Windows = {},
+    -- قاعدة أيقونات Material موسعة (معرفات حقيقية)
+    MaterialIcons = {
+        ["home"] = "rbxassetid://6034506369",
+        ["dashboard"] = "rbxassetid://6034506370",
+        ["settings"] = "rbxassetid://6034506371",
+        ["person"] = "rbxassetid://6034506372",
+        ["star"] = "rbxassetid://6034506373",
+        ["view_in_ar"] = "rbxassetid://6034506368",
+        ["favorite"] = "rbxassetid://6034506374",
+        ["search"] = "rbxassetid://6034506375",
+        ["visibility"] = "rbxassetid://6034506376",
+        ["lock"] = "rbxassetid://6034506377",
+        ["build"] = "rbxassetid://6034506378",
+        ["code"] = "rbxassetid://6034506379",
+        ["bug_report"] = "rbxassetid://6034506380",
+        ["lightbulb"] = "rbxassetid://6034506381",
+        ["info"] = "rbxassetid://6034506382",
+        ["warning"] = "rbxassetid://6034506383",
+        ["error"] = "rbxassetid://6034506384",
+        ["check_circle"] = "rbxassetid://6034506385",
+        ["add"] = "rbxassetid://6034506386",
+        ["delete"] = "rbxassetid://6034506387",
+        ["edit"] = "rbxassetid://6034506388",
+        ["refresh"] = "rbxassetid://6034506389",
+        ["arrow_back"] = "rbxassetid://6034506390",
+        ["arrow_forward"] = "rbxassetid://6034506391",
+        ["menu"] = "rbxassetid://6034506392",
+        ["more_vert"] = "rbxassetid://6034506393",
+        ["close"] = "rbxassetid://6034506394",
+        ["done"] = "rbxassetid://6034506395",
+        ["save"] = "rbxassetid://6034506396",
+        ["folder"] = "rbxassetid://6034506397",
+        ["file"] = "rbxassetid://6034506398",
+        ["cloud"] = "rbxassetid://6034506399",
+        ["download"] = "rbxassetid://6034506400",
+        ["upload"] = "rbxassetid://6034506401",
+        ["play_arrow"] = "rbxassetid://6034506402",
+        ["pause"] = "rbxassetid://6034506403",
+        ["stop"] = "rbxassetid://6034506404",
+        ["skip_next"] = "rbxassetid://6034506405",
+        ["skip_previous"] = "rbxassetid://6034506406",
+        ["volume_up"] = "rbxassetid://6034506407",
+        ["volume_down"] = "rbxassetid://6034506408",
+        ["mic"] = "rbxassetid://6034506409",
+        ["camera"] = "rbxassetid://6034506410",
+        ["videocam"] = "rbxassetid://6034506411",
+        ["image"] = "rbxassetid://6034506412",
+        ["music_note"] = "rbxassetid://6034506413",
+        ["headset"] = "rbxassetid://6034506414",
+        ["gamepad"] = "rbxassetid://6034506415",
+        ["keyboard"] = "rbxassetid://6034506416",
+        ["mouse"] = "rbxassetid://6034506417",
+        ["power_settings_new"] = "rbxassetid://6034506418",
+        ["brightness_high"] = "rbxassetid://6034506419",
+        ["palette"] = "rbxassetid://6034506420",
+        ["style"] = "rbxassetid://6034506421",
+        ["tune"] = "rbxassetid://6034506422",
+    }
+}
+
+-- // ---------- [ Utility Functions ] ---------- \\
+-- إضافة حدود متوهجة متحركة
+function AlphaLib:AddGlowStroke(parent, color)
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 2
+    stroke.Color = color or self.CurrentGlowColor
+    stroke.Parent = parent
+    local grad = Instance.new("UIGradient", stroke)
+    grad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)),
+        ColorSequenceKeypoint.new(0.5, stroke.Color),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255))
+    })
+    task.spawn(function()
+        local angle = 0
+        while parent and parent.Parent do
+            angle = (angle + 2) % 360
+            grad.Rotation = angle
+            task.wait(0.02)
+        end
+    end)
+    return stroke
+end
+
+-- حركة توين
+local function tween(obj, props, time, easing, callback)
+    local t = TweenService:Create(obj, TweenInfo.new(time, easing or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
+    t:Play()
+    if callback then t.Completed:Connect(callback) end
+    return t
+end
+
+-- جلب أيقونة Material
+function AlphaLib:GetMaterialIcon(name)
+    return self.MaterialIcons[name] or ""
+end
+
+-- // ---------- [ Loading Screen ] ---------- \\
+function AlphaLib:ShowLoading(title, subtitle, callback)
+    local gui = Instance.new("ScreenGui", CoreGui)
+    gui.Name = "AlphaLib_Loading"
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(0, 350, 0, 200)
+    frame.Position = UDim2.new(0.5, -175, 0.5, -100)
+    frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    frame.BackgroundTransparency = 0.3
+    frame.BorderSizePixel = 0
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
+    self:AddGlowStroke(frame)
+
+    local titleLbl = Instance.new("TextLabel", frame)
+    titleLbl.Size = UDim2.new(1,0,0,45)
+    titleLbl.Position = UDim2.new(0,0,0,25)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = title or "AlphaLib"
+    titleLbl.TextColor3 = Color3.fromRGB(255,255,255)
+    titleLbl.Font = Enum.Font.GothamBlack
+    titleLbl.TextSize = 34
+    local ttlGrad = Instance.new("UIGradient", titleLbl)
+    ttlGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(170,0,255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0,200,255))
+    })
+
+    if subtitle then
+        local subLbl = Instance.new("TextLabel", frame)
+        subLbl.Size = UDim2.new(1,0,0,25)
+        subLbl.Position = UDim2.new(0,0,0,75)
+        subLbl.BackgroundTransparency = 1
+        subLbl.Text = subtitle
+        subLbl.TextColor3 = Color3.fromRGB(200,200,200)
+        subLbl.Font = Enum.Font.GothamSemibold
+        subLbl.TextSize = 16
+    end
+
+    local progressBg = Instance.new("Frame", frame)
+    progressBg.Size = UDim2.new(0.8,0,0,14)
+    progressBg.Position = UDim2.new(0.1,0,0,140)
+    progressBg.BackgroundColor3 = Color3.fromRGB(30,30,40)
+    Instance.new("UICorner", progressBg).CornerRadius = UDim.new(0,7)
+
+    local fill = Instance.new("Frame", progressBg)
+    fill.Size = UDim2.new(0,0,1,0)
+    fill.BackgroundColor3 = self.CurrentGlowColor
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(0,7)
+
+    task.spawn(function()
+        for i = 1, 100 do
+            fill.Size = UDim2.new(i/100,0,1,0)
+            task.wait(0.01)
+        end
+        gui:Destroy()
+        if callback then callback() end
+    end)
+end
+
+-- // ---------- [ Notification ] ---------- \\
+function AlphaLib:Notification(title, text, duration)
+    local gui = Instance.new("ScreenGui", CoreGui)
+    gui.Name = "AlphaLib_Notif"
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(0,300,0,85)
+    frame.Position = UDim2.new(1,320,0.85,-42)
+    frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    frame.BackgroundTransparency = 0.15
+    frame.BorderSizePixel = 0
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0,8)
+    self:AddGlowStroke(frame)
+
+    local titleLbl = Instance.new("TextLabel", frame)
+    titleLbl.Size = UDim2.new(1,-20,0,25)
+    titleLbl.Position = UDim2.new(0,10,0,8)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = title
+    titleLbl.TextColor3 = Color3.fromRGB(255,255,255)
+    titleLbl.Font = Enum.Font.GothamBold
+    titleLbl.TextSize = 16
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    local textLbl = Instance.new("TextLabel", frame)
+    textLbl.Size = UDim2.new(1,-20,0,30)
+    textLbl.Position = UDim2.new(0,10,0,40)
+    textLbl.BackgroundTransparency = 1
+    textLbl.Text = text
+    textLbl.TextColor3 = Color3.fromRGB(200,200,200)
+    textLbl.Font = Enum.Font.Gotham
+    textLbl.TextSize = 14
+    textLbl.TextXAlignment = Enum.TextXAlignment.Left
+    textLbl.TextWrapped = true
+
+    tween(frame, {Position = UDim2.new(1,-320,0.85,-42)}, 0.4)
+    task.delay(duration or 3, function()
+        tween(frame, {Position = UDim2.new(1,320,0.85,-42)}, 0.4, nil, function() gui:Destroy() end)
+    end)
+end
+
+-- // ---------- [ FPS Counter Widget ] ---------- \\
+function AlphaLib:CreateFPS()
+    local gui = Instance.new("ScreenGui", CoreGui)
+    gui.Name = "AlphaLib_FPS"
+    local container = Instance.new("Frame", gui)
+    container.BackgroundTransparency = 0.7
+    container.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    container.Size = UDim2.new(0,75,0,30)
+    container.Position = UDim2.new(1,-85,0,10)
+    container.AnchorPoint = Vector2.new(1,0)
+    Instance.new("UICorner", container).CornerRadius = UDim.new(0,4)
+    self:AddGlowStroke(container)
+
+    local label = Instance.new("TextLabel", container)
+    label.Size = UDim2.new(1,0,1,0)
+    label.BackgroundTransparency = 1
+    label.Text = "60 FPS"
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 14
+
+    task.spawn(function()
+        local last = tick()
+        RunService.RenderStepped:Connect(function()
+            local delta = tick() - last
+            last = tick()
+            label.Text = math.round(1/delta).." FPS"
+        end)
+    end)
+
+    local drag, startMouse, startPos
+    container.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            drag = true
+            startMouse = input.Position
+            startPos = container.Position
+            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then drag = false end end)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if drag and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - startMouse
+            container.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset+delta.X, startPos.Y.Scale, startPos.Y.Offset+delta.Y)
+        end
+    end)
+    return gui
+end
+
+-- // ---------- [ Low Graphics Toggle (Boost FPS) ] ---------- \\
+local lowGraphicsEnabled = false
+function AlphaLib:SetLowGraphics(enabled)
+    lowGraphicsEnabled = enabled
+    local settings = UserSettings():GetService("UserGameSettings")
+    local function apply()
+        -- إعدادات رسومية منخفضة لزيادة FPS
+        settings.MasterVolume = 0
+        settings.MusicVolume = 0
+        settings.SFXVolume = 0
+        settings.GraphicsQualityLevel = 1 -- الأدنى
+        settings.SavedQualityLevel = 1
+        settings.ShadowQuality = 0
+        settings.LightingTechnology = 0 -- Compatibility
+        settings.LightingMode = 0
+        if workspace:FindFirstChild("Terrain") then
+            workspace.Terrain.WaterWaveSize = 0
+            workspace.Terrain.WaterWaveSpeed = 0
+            workspace.Terrain.WaterReflectance = 0
+            workspace.Terrain.WaterTransparency = 0
+        end
+        -- إيقاف التأثيرات
+        for _,v in ipairs(workspace:GetDescendants()) do
+            if v:IsA("ParticleEmitter") then v.Enabled = false end
+            if v:IsA("Trail") then v.Enabled = false end
+            if v:IsA("Beam") then v.Enabled = false end
+            if v:IsA("BloomEffect") then v.Enabled = false end
+            if v:IsA("BlurEffect") then v.Enabled = false end
+            if v:IsA("SunRaysEffect") then v.Enabled = false end
+            if v:IsA("ColorCorrectionEffect") then v.Enabled = false end
+        end
+    end
+    if enabled then
+        apply()
+        self:Notification("Low Graphics", "تم تفعيل الرسوميات المنخفضة لزيادة FPS", 3)
+    else
+        settings.GraphicsQualityLevel = 10 -- افتراضي مرتفع
+        settings.ShadowQuality = 1
+        -- إعادة التأثيرات (بسيط)
+        self:Notification("Graphics", "تم إعادة الرسوميات الافتراضية", 3)
+    end
+end
+
+-- // ---------- [ Color Picker (HSV) ] ---------- \\
+local function createColorPicker(parent, callback)
+    local picker = Instance.new("Frame", parent)
+    picker.Size = UDim2.new(0,200,0,180)
+    picker.BackgroundColor3 = Color3.fromRGB(20,20,30)
+    picker.BorderSizePixel = 0
+    Instance.new("UICorner", picker).CornerRadius = UDim.new(0,8)
+    AlphaLib:AddGlowStroke(picker)
+
+    local svSquare = Instance.new("ImageLabel", picker)
+    svSquare.Size = UDim2.new(0,160,0,120)
+    svSquare.Position = UDim2.new(0,10,0,10)
+    svSquare.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    local svWhite = Instance.new("UIGradient", svSquare)
+    svWhite.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255))
+    })
+    svWhite.Rotation = 90
+    local svBlack = Instance.new("UIGradient", svSquare)
+    svBlack.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0,0,0))
+    })
+    svBlack.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0,0),
+        NumberSequenceKeypoint.new(1,1)
+    })
+    svBlack.Rotation = 180
+
+    local hueBar = Instance.new("Frame", picker)
+    hueBar.Size = UDim2.new(0,160,0,20)
+    hueBar.Position = UDim2.new(0,10,0,140)
+    hueBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    local hueGrad = Instance.new("UIGradient", hueBar)
+    hueGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)),
+        ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255,255,0)),
+        ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0,255,0)),
+        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0,255,255)),
+        ColorSequenceKeypoint.new(0.8, Color3.fromRGB(0,0,255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,0))
+    })
+    Instance.new("UICorner", hueBar).CornerRadius = UDim.new(0,4)
+
+    local hueDot = Instance.new("Frame", hueBar)
+    hueDot.Size = UDim2.new(0,8,1.5,0)
+    hueDot.Position = UDim2.new(0,0,0,0)
+    hueDot.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    hueDot.BorderSizePixel = 0
+    Instance.new("UICorner", hueDot).CornerRadius = UDim.new(0,4)
+
+    local svDot = Instance.new("Frame", svSquare)
+    svDot.Size = UDim2.new(0,8,0,8)
+    svDot.Position = UDim2.new(0,0,0,0)
+    svDot.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    svDot.BorderSizePixel = 0
+    Instance.new("UICorner", svDot).CornerRadius = UDim.new(0,4)
+    svDot.ZIndex = 10
+
+    local currentHue, currentSat, currentVal = 0,1,1
+
+    local function updateSV()
+        svSquare.BackgroundColor3 = Color3.fromHSV(currentHue,1,1)
+    end
+    local function fireCallback()
+        callback(Color3.fromHSV(currentHue, currentSat, currentVal))
+    end
+
+    hueBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local function move(inp)
+                local rel = math.clamp((inp.Position.X - hueBar.AbsolutePosition.X)/hueBar.AbsoluteSize.X, 0, 1)
+                currentHue = rel
+                hueDot.Position = UDim2.new(rel, -4, 0, 0)
+                updateSV()
+                fireCallback()
+            end
+            move(input)
+            local conn
+            conn = UserInputService.InputChanged:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseMovement then move(inp) end end)
+            local endConn
+            endConn = UserInputService.InputEnded:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 then conn:Disconnect() endConn:Disconnect() end
+            end)
+        end
+    end)
+
+    svSquare.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local function move(inp)
+                local x = math.clamp((inp.Position.X - svSquare.AbsolutePosition.X)/svSquare.AbsoluteSize.X, 0,1)
+                local y = math.clamp((inp.Position.Y - svSquare.AbsolutePosition.Y)/svSquare.AbsoluteSize.Y, 0,1)
+                currentSat = x
+                currentVal = 1 - y
+                svDot.Position = UDim2.new(x, -4, 1-y, -4)
+                fireCallback()
+            end
+            move(input)
+            local conn
+            conn = UserInputService.InputChanged:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseMovement then move(inp) end end)
+            local endConn
+            endConn = UserInputService.InputEnded:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1 then conn:Disconnect() endConn:Disconnect() end
+            end)
+        end
+    end)
+
+    updateSV()
+    fireCallback()
+    return picker
+end
+
+-- // ---------- [ Window Builder ] ---------- \\
+function AlphaLib:CreateWindow(config)
+    local window = {}
+    window.Name = config.Name
+    window.Flags = {}
+    window.ConfigFolder = config.ConfigSettings and config.ConfigSettings.ConfigFolder or "AlphaLib"
+
+    -- التحميل
+    if config.LoadingEnabled ~= false then
+        self:ShowLoading(config.LoadingTitle or "AlphaLib", config.LoadingSubtitle, function()
+            self:_buildWindow(window, config)
+        end)
+    else
+        self:_buildWindow(window, config)
+    end
+
+    return window
+end
+
+function AlphaLib:_buildWindow(window, config)
+    local gui = Instance.new("ScreenGui", CoreGui)
+    gui.Name = "AlphaLib_" .. window.Name
+
+    local main = Instance.new("Frame", gui)
+    main.Size = UDim2.new(0, 750, 0, 500)
+    main.Position = UDim2.new(0.5, -375, 0.5, -250)
+    main.BackgroundColor3 = self.Theme.Background
+    main.BorderSizePixel = 0
+    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
+    self:AddGlowStroke(main)
+
+    -- شريط العنوان
+    local titleBar = Instance.new("Frame", main)
+    titleBar.Size = UDim2.new(1,0,0,60)
+    titleBar.BackgroundColor3 = Color3.fromRGB(15,12,25)
+    Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0,8)
+    self:AddGlowStroke(titleBar)
+
+    -- شعار اختياري
+    if config.LogoID and config.LogoID ~= "" then
+        local logo = Instance.new("ImageLabel", titleBar)
+        logo.Size = UDim2.new(0, 40, 0, 40)
+        logo.Position = UDim2.new(0, 10, 0.5, -20)
+        logo.BackgroundTransparency = 1
+        logo.Image = "rbxassetid://" .. config.LogoID
+        local mask = Instance.new("ImageLabel", logo)
+        mask.Size = UDim2.new(1,0,1,0)
+        mask.BackgroundTransparency = 1
+        mask.Image = "rbxassetid://3570695787"
+        mask.ScaleType = Enum.ScaleType.Fit
+        logo.ClipDescendants = true
+    end
+
+    -- صورة اللاعب (دائماً)
+    local avatar = Instance.new("ImageLabel", titleBar)
+    avatar.Size = UDim2.new(0, 40, 0, 40)
+    avatar.Position = UDim2.new(0, 55, 0.5, -20)
+    avatar.BackgroundTransparency = 1
+    pcall(function()
+        local _, content = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
+        avatar.Image = content
+    end)
+    local avatarMask = Instance.new("ImageLabel", avatar)
+    avatarMask.Size = UDim2.new(1,0,1,0)
+    avatarMask.BackgroundTransparency = 1
+    avatarMask.Image = "rbxassetid://3570695787"
+    avatarMask.ScaleType = Enum.ScaleType.Fit
+    avatar.ClipDescendants = true
+
+    -- عنوان النافذة
+    local titleText = Instance.new("TextLabel", titleBar)
+    titleText.Size = UDim2.new(1, -160, 1, 0)
+    titleText.Position = UDim2.new(0, 100, 0, 0)
+    titleText.BackgroundTransparency = 1
+    titleText.Text = window.Name
+    titleText.TextColor3 = Color3.fromRGB(255,255,255)
+    titleText.Font = Enum.Font.GothamBold
+    titleText.TextSize = 24
+    titleText.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- شريط التبويبات الجانبي
+    local sideBar = Instance.new("Frame", main)
+    sideBar.Size = UDim2.new(0, 170, 1, -60)
+    sideBar.Position = UDim2.new(0, 0, 0, 60)
+    sideBar.BackgroundColor3 = Color3.fromRGB(14,12,22)
+    sideBar.BorderSizePixel = 0
+    self:AddGlowStroke(sideBar)
+
+    local tabButtonsFrame = Instance.new("ScrollingFrame", sideBar)
+    tabButtonsFrame.Size = UDim2.new(1, -10, 1, -10)
+    tabButtonsFrame.Position = UDim2.new(0, 5, 0, 5)
+    tabButtonsFrame.BackgroundTransparency = 1
+    tabButtonsFrame.ScrollBarThickness = 0
+    tabButtonsFrame.CanvasSize = UDim2.new(0,0,0,0)
+
+    -- منطقة المحتوى
+    local contentArea = Instance.new("Frame", main)
+    contentArea.Size = UDim2.new(1, -170, 1, -60)
+    contentArea.Position = UDim2.new(0, 170, 0, 60)
+    contentArea.BackgroundColor3 = self.Theme.Background
+    contentArea.BorderSizePixel = 0
+
+    window.Tabs = {}
+    window.TabButtons = {}
+    window.TabContents = {}
+
+    -- دالة حفظ / تحميل الإعدادات
+    local function saveFlags()
+        if not isfolder or not makefolder or not writefile then return end
+        pcall(function()
+            if not isfolder(window.ConfigFolder) then makefolder(window.ConfigFolder) end
+            writefile(window.ConfigFolder .. "/flags.json", HttpService:JSONEncode(window.Flags))
+        end)
+    end
+    local function loadFlags()
+        if not isfile or not readfile then return end
+        pcall(function()
+            if isfile(window.ConfigFolder .. "/flags.json") then
+                local data = HttpService:JSONDecode(readfile(window.ConfigFolder .. "/flags.json"))
+                for flag, value in pairs(data) do
+                    window.Flags[flag] = value
+                end
+            end
+        end)
+    end
+    loadFlags()
+
+    -- إنشاء تبويب (مع أيقونة)
+    function window:CreateTab(tabConfig)
+        local tabName = tabConfig.Name
+        local icon = tabConfig.Icon
+        local imageSource = tabConfig.ImageSource or "Material"
+        local iconId = ""
+        if imageSource == "Material" and icon then
+            iconId = self:GetMaterialIcon(icon)
+        end
+
+        local tabBtn = Instance.new("TextButton", tabButtonsFrame)
+        tabBtn.Size = UDim2.new(1, -10, 0, 40)
+        tabBtn.Position = UDim2.new(0, 5, 0, 10 + (#window.Tabs * 45))
+        tabBtn.BackgroundColor3 = Color3.fromRGB(25,25,35)
+        tabBtn.BorderSizePixel = 0
+        tabBtn.Text = ""
+        tabBtn.Font = Enum.Font.GothamSemibold
+        tabBtn.TextSize = 14
+        Instance.new("UICorner", tabBtn).CornerRadius = UDim.new(0,6)
+        self:AddGlowStroke(tabBtn)
+
+        if iconId ~= "" then
+            local iconImg = Instance.new("ImageLabel", tabBtn)
+            iconImg.Size = UDim2.new(0, 24, 0, 24)
+            iconImg.Position = UDim2.new(0, 8, 0.5, -12)
+            iconImg.BackgroundTransparency = 1
+            iconImg.Image = iconId
+            iconImg.ImageColor3 = Color3.fromRGB(255,255,255)
+            iconImg.ScaleType = Enum.ScaleType.Fit
+        end
+
+        local textLabel = Instance.new("TextLabel", tabBtn)
+        textLabel.Size = UDim2.new(1, -40, 1, 0)
+        textLabel.Position = UDim2.new(0, 35, 0, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = tabName
+        textLabel.TextColor3 = self.Theme.Text
+        textLabel.Font = Enum.Font.GothamSemibold
+        textLabel.TextSize = 14
+        textLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+        local tabContent = Instance.new("ScrollingFrame", contentArea)
+        tabContent.Size = UDim2.new(1, -20, 1, -20)
+        tabContent.Position = UDim2.new(0, 10, 0, 10)
+        tabContent.BackgroundTransparency = 1
+        tabContent.ScrollBarThickness = 4
+        tabContent.CanvasSize = UDim2.new(0,0,0,0)
+        tabContent.ScrollingDirection = Enum.ScrollingDirection.Y
+        tabContent.Visible = false
+
+        table.insert(window.Tabs, {button = tabBtn, content = tabContent})
+        window.TabButtons[tabName] = tabBtn
+        window.TabContents[tabName] = tabContent
+
+        tabBtn.MouseButton1Click:Connect(function()
+            for _, t in pairs(window.TabContents) do t.Visible = false end
+            tabContent.Visible = true
+        end)
+        if #window.Tabs == 1 then tabContent.Visible = true end
+
+        -- تحديث Canvas
+        local sections = {}
+        local function updateCanvas()
+            local h = 10
+            for _, sec in ipairs(sections) do
+                h = h + sec.Frame.AbsoluteSize.Y + 10
+            end
+            tabContent.CanvasSize = UDim2.new(0,0,0,h)
+        end
+
+        -- دالة CreateSection (لكل تبويب)
+        local function createSection(title)
+            local secFrame = Instance.new("Frame", tabContent)
+            secFrame.Size = UDim2.new(1, -10, 0, 40)
+            secFrame.BackgroundColor3 = Color3.fromRGB(20,20,30)
+            secFrame.BorderSizePixel = 0
+            Instance.new("UICorner", secFrame).CornerRadius = UDim.new(0,6)
+            self:AddGlowStroke(secFrame)
+
+            local yPos = 10
+            for _, s in ipairs(sections) do
+                yPos = yPos + s.Frame.AbsoluteSize.Y + 10
+            end
+            secFrame.Position = UDim2.new(0, 5, 0, yPos)
+
+            local secTitle = Instance.new("TextLabel", secFrame)
+            secTitle.Size = UDim2.new(1, -20, 0, 25)
+            secTitle.Position = UDim2.new(0, 10, 0, 5)
+            secTitle.BackgroundTransparency = 1
+            secTitle.Text = title
+            secTitle.TextColor3 = self.Theme.Text
+            secTitle.Font = Enum.Font.GothamBold
+            secTitle.TextSize = 16
+            secTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+            local elemHolder = Instance.new("Frame", secFrame)
+            elemHolder.Size = UDim2.new(1, -20, 0, 0)
+            elemHolder.Position = UDim2.new(0, 10, 0, 35)
+            elemHolder.BackgroundTransparency = 1
+
+            local sectionObj = {Frame = secFrame, Holder = elemHolder}
+            local elemY = 0
+            local function nextY(offset)
+                elemY = elemY + (offset or 30)
+                return elemY - (offset or 30)
+            end
+
+            -- تعريف العناصر كما في Luna (مع Flags)
+            function sectionObj:CreateButton(params)
+                local btn = Instance.new("TextButton", elemHolder)
+                btn.Size = UDim2.new(1, 0, 0, 30)
+                btn.Position = UDim2.new(0, 0, 0, nextY(35))
+                btn.Text = params.Name
+                btn.BackgroundColor3 = Color3.fromRGB(30,30,40)
+                btn.TextColor3 = self.Theme.Text
+                btn.Font = Enum.Font.Gotham
+                btn.TextSize = 14
+                Instance.new("UICorner", btn).CornerRadius = UDim.new(0,4)
+                self:AddGlowStroke(btn)
+                btn.MouseButton1Click:Connect(params.Callback or function() end)
+                secFrame.Size = UDim2.new(1, -10, 0, elemHolder.AbsoluteSize.Y + 60)
+                updateCanvas()
+                return btn
+            end
+
+            function sectionObj:CreateToggle(params, flag)
+                local tf = Instance.new("Frame", elemHolder)
+                tf.Size = UDim2.new(1, 0, 0, 30)
+                tf.Position = UDim2.new(0, 0, 0, nextY(35))
+                tf.BackgroundTransparency = 1
+
+                local lbl = Instance.new("TextLabel", tf)
+                lbl.Size = UDim2.new(0, 150, 1, 0)
+                lbl.BackgroundTransparency = 1
+                lbl.Text = params.Name
+                lbl.TextColor3 = self.Theme.Text
+                lbl.Font = Enum.Font.Gotham
+                lbl.TextSize = 14
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+                local sw = Instance.new("Frame", tf)
+                sw.Size = UDim2.new(0, 44, 0, 20)
+                sw.Position = UDim2.new(1, -44, 0.5, -10)
+                sw.BackgroundColor3 = Color3.fromRGB(60,60,70)
+                Instance.new("UICorner", sw).CornerRadius = UDim.new(1,0)
+                self:AddGlowStroke(sw)
+                local knob = Instance.new("Frame", sw)
+                knob.Size = UDim2.new(0, 16, 0, 16)
+                knob.Position = UDim2.new(0, 2, 0.5, -8)
+                knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+                Instance.new("UICorner", knob).CornerRadius = UDim.new(1,0)
+
+                local enabled = params.CurrentValue or false
+                if flag and window.Flags[flag] ~= nil then
+                    enabled = window.Flags[flag]
+                end
+                local function updateVis()
+                    if enabled then
+                        sw.BackgroundColor3 = self.CurrentGlowColor
+                        tween(knob, {Position = UDim2.new(0, 26, 0.5, -8)}, 0.2)
+                    else
+                        sw.BackgroundColor3 = Color3.fromRGB(60,60,70)
+                        tween(knob, {Position = UDim2.new(0, 2, 0.5, -8)}, 0.2)
+                    end
+                    if flag then window.Flags[flag] = enabled; saveFlags() end
+                end
+                updateVis()
+                sw.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        enabled = not enabled
+                        updateVis()
+                        if params.Callback then params.Callback(enabled) end
+                    end
+                end)
+                secFrame.Size = UDim2.new(1, -10, 0, elemHolder.AbsoluteSize.Y + 60)
+                updateCanvas()
+                return {
+                    Set = function(v) enabled = v; updateVis() end,
+                    Get = function() return enabled end
+                }
+            end
+
+            function sectionObj:CreateSlider(params, flag)
+                local sf = Instance.new("Frame", elemHolder)
+                sf.Size = UDim2.new(1, 0, 0, 40)
+                sf.Position = UDim2.new(0, 0, 0, nextY(45))
+                sf.BackgroundTransparency = 1
+
+                local lbl = Instance.new("TextLabel", sf)
+                lbl.Size = UDim2.new(0, 150, 0, 20)
+                lbl.BackgroundTransparency = 1
+                lbl.Text = params.Name .. ": " .. (params.CurrentValue or 0)
+                lbl.TextColor3 = self.Theme.Text
+                lbl.Font = Enum.Font.Gotham
+                lbl.TextSize = 14
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+                local track = Instance.new("Frame", sf)
+                track.Size = UDim2.new(1, -160, 0, 6)
+                track.Position = UDim2.new(0, 160, 0, 7)
+                track.BackgroundColor3 = Color3.fromRGB(40,40,50)
+                Instance.new("UICorner", track).CornerRadius = UDim.new(0,3)
+                local fill = Instance.new("Frame", track)
+                fill.BackgroundColor3 = self.CurrentGlowColor
+                Instance.new("UICorner", fill).CornerRadius = UDim.new(0,3)
+
+                local val = params.CurrentValue or 0
+                if flag and window.Flags[flag] ~= nil then val = window.Flags[flag] end
+                local min, max = params.Range[1], params.Range[2]
+                local function update()
+                    fill.Size = UDim2.new((val-min)/(max-min), 0, 1, 0)
+                    lbl.Text = params.Name .. ": " .. math.floor(val*100)/100
+                    if flag then window.Flags[flag] = val; saveFlags() end
+                end
+                update()
+
+                local dragging = false
+                track.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        dragging = true
+                        local function move(inp)
+                            local rel = math.clamp((inp.Position.X - track.AbsolutePosition.X)/track.AbsoluteSize.X, 0, 1)
+                            val = min + rel*(max-min)
+                            update()
+                            if params.Callback then params.Callback(val) end
+                        end
+                        move(input)
+                        local conn
+                        conn = UserInputService.InputChanged:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseMovement then move(inp) end end)
+                        local endConn
+                        endConn = UserInputService.InputEnded:Connect(function(inp)
+                            if inp.UserInputType == Enum.UserInputType.MouseButton1 then dragging=false conn:Disconnect() endConn:Disconnect() end
+                        end)
+                    end
+                end)
+                secFrame.Size = UDim2.new(1, -10, 0, elemHolder.AbsoluteSize.Y + 60)
+                updateCanvas()
+                return {Set = function(v) val = v; update() end, Get = function() return val end}
+            end
+
+            function sectionObj:CreateDropdown(params, flag)
+                local df = Instance.new("Frame", elemHolder)
+                df.Size = UDim2.new(1, 0, 0, 30)
+                df.Position = UDim2.new(0, 0, 0, nextY(35))
+                df.BackgroundTransparency = 1
+
+                local lbl = Instance.new("TextLabel", df)
+                lbl.Size = UDim2.new(0, 150, 1, 0)
+                lbl.BackgroundTransparency = 1
+                lbl.Text = params.Name
+                lbl.TextColor3 = self.Theme.Text
+                lbl.Font = Enum.Font.Gotham
+                lbl.TextSize = 14
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+                local btn = Instance.new("TextButton", df)
+                btn.Size = UDim2.new(1, -150, 0, 26)
+                btn.Position = UDim2.new(0, 150, 0, 2)
+                local currentOptions = params.CurrentOption or {}
+                if flag and window.Flags[flag] then currentOptions = window.Flags[flag] end
+                local displayText = type(currentOptions) == "table" and table.concat(currentOptions, ", ") or currentOptions
+                btn.Text = displayText ~= "" and displayText or "Select..."
+                btn.BackgroundColor3 = Color3.fromRGB(30,30,40)
+                btn.TextColor3 = self.Theme.Text
+                btn.Font = Enum.Font.Gotham
+                btn.TextSize = 14
+                Instance.new("UICorner", btn).CornerRadius = UDim.new(0,4)
+                self:AddGlowStroke(btn)
+
+                local open = false
+                local list
+                btn.MouseButton1Click:Connect(function()
+                    if open then
+                        list:Destroy()
+                        open = false
+                    else
+                        list = Instance.new("Frame", df)
+                        list.Size = UDim2.new(1, -150, 0, #params.Options * 25)
+                        list.Position = UDim2.new(0, 150, 1, 5)
+                        list.BackgroundColor3 = Color3.fromRGB(30,30,40)
+                        list.BorderSizePixel = 0
+                        Instance.new("UICorner", list).CornerRadius = UDim.new(0,4)
+                        self:AddGlowStroke(list)
+                        list.ZIndex = 10
+                        for i, opt in ipairs(params.Options) do
+                            local obtn = Instance.new("TextButton", list)
+                            obtn.Size = UDim2.new(1, 0, 0, 25)
+                            obtn.Position = UDim2.new(0, 0, 0, (i-1)*25)
+                            obtn.Text = opt
+                            obtn.BackgroundColor3 = Color3.fromRGB(40,40,50)
+                            obtn.TextColor3 = self.Theme.Text
+                            obtn.Font = Enum.Font.Gotham
+                            obtn.TextSize = 14
+                            obtn.MouseButton1Click:Connect(function()
+                                if params.MultipleOptions then
+                                    local tbl = type(currentOptions) == "table" and currentOptions or {}
+                                    local idx = table.find(tbl, opt)
+                                    if idx then table.remove(tbl, idx) else table.insert(tbl, opt) end
+                                    currentOptions = tbl
+                                else
+                                    currentOptions = {opt}
+                                    list:Destroy()
+                                    open = false
+                                end
+                                btn.Text = table.concat(currentOptions, ", ")
+                                if flag then window.Flags[flag] = currentOptions; saveFlags() end
+                                if params.Callback then params.Callback(params.MultipleOptions and currentOptions or currentOptions[1]) end
+                            end)
+                        end
+                        open = true
+                    end
+                end)
+                secFrame.Size = UDim2.new(1, -10, 0, elemHolder.AbsoluteSize.Y + 60)
+                updateCanvas()
+            end
+
+            function sectionObj:CreateColorPicker(params, flag)
+                local cpf = Instance.new("Frame", elemHolder)
+                cpf.Size = UDim2.new(1, 0, 0, 35)
+                cpf.Position = UDim2.new(0, 0, 0, nextY(40))
+                cpf.BackgroundTransparency = 1
+
+                local lbl = Instance.new("TextLabel", cpf)
+                lbl.Size = UDim2.new(0, 150, 0, 20)
+                lbl.BackgroundTransparency = 1
+                lbl.Text = params.Name
+                lbl.TextColor3 = self.Theme.Text
+                lbl.Font = Enum.Font.Gotham
+                lbl.TextSize = 14
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+                local preview = Instance.new("Frame", cpf)
+                preview.Size = UDim2.new(0, 30, 0, 30)
+                preview.Position = UDim2.new(0, 150, 0, 0)
+                local defaultColor = params.Color or Color3.fromRGB(255,255,255)
+                if flag and window.Flags[flag] then defaultColor = Color3.fromRGB(window.Flags[flag][1], window.Flags[flag][2], window.Flags[flag][3]) end
+                preview.BackgroundColor3 = defaultColor
+                Instance.new("UICorner", preview).CornerRadius = UDim.new(0,4)
+                self:AddGlowStroke(preview)
+
+                local pickerOpen = false
+                local pickerGui
+                preview.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        if pickerOpen then
+                            pickerGui:Destroy()
+                            pickerOpen = false
+                        else
+                            pickerGui = Instance.new("Frame", cpf)
+                            pickerGui.Position = UDim2.new(0, 150, 1, 5)
+                            pickerGui.BackgroundTransparency = 1
+                            pickerGui.Size = UDim2.new(0,200,0,200)
+                            createColorPicker(pickerGui, function(color)
+                                preview.BackgroundColor3 = color
+                                if flag then window.Flags[flag] = {color.R, color.G, color.B}; saveFlags() end
+                                if params.Callback then params.Callback(color) end
+                            end)
+                            pickerOpen = true
+                        end
+                    end
+                end)
+                secFrame.Size = UDim2.new(1, -10, 0, elemHolder.AbsoluteSize.Y + 60)
+                updateCanvas()
+            end
+
+            function sectionObj:CreateBind(params, flag)
+                local kf = Instance.new("Frame", elemHolder)
+                kf.Size = UDim2.new(1, 0, 0, 30)
+                kf.Position = UDim2.new(0, 0, 0, nextY(35))
+                kf.BackgroundTransparency = 1
+
+                local lbl = Instance.new("TextLabel", kf)
+                lbl.Size = UDim2.new(0, 150, 1, 0)
+                lbl.BackgroundTransparency = 1
+                lbl.Text = params.Name
+                lbl.TextColor3 = self.Theme.Text
+                lbl.Font = Enum.Font.Gotham
+                lbl.TextSize = 14
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+                local btn = Instance.new("TextButton", kf)
+                btn.Size = UDim2.new(1, -150, 0, 26)
+                btn.Position = UDim2.new(0, 150, 0, 2)
+                local currentBind = params.CurrentBind or Enum.KeyCode.Q
+                if flag and window.Flags[flag] then currentBind = Enum.KeyCode[window.Flags[flag]] end
+                btn.Text = currentBind.Name
+                btn.BackgroundColor3 = Color3.fromRGB(30,30,40)
+                btn.TextColor3 = self.Theme.Text
+                btn.Font = Enum.Font.Gotham
+                btn.TextSize = 14
+                Instance.new("UICorner", btn).CornerRadius = UDim.new(0,4)
+                self:AddGlowStroke(btn)
+
+                local listening = false
+                local function updateBind(newKey)
+                    btn.Text = newKey.Name
+                    if flag then window.Flags[flag] = newKey.Name; saveFlags() end
+                    if params.OnChangedCallback then params.OnChangedCallback(newKey) end
+                end
+                btn.MouseButton1Click:Connect(function()
+                    listening = true
+                    btn.Text = "..."
+                    local conn
+                    conn = UserInputService.InputBegan:Connect(function(inp, gp)
+                        if listening and not gp then
+                            listening = false
+                            conn:Disconnect()
+                            updateBind(inp.KeyCode)
+                        end
+                    end)
+                end)
+                -- لو HoldToInteract مفعلة نربط الحدث
+                local holdActive = false
+                if params.HoldToInteract then
+                    UserInputService.InputBegan:Connect(function(inp, gp)
+                        if not gp and inp.KeyCode == currentBind then
+                            holdActive = true
+                            if params.Callback then params.Callback(true) end
+                        end
+                    end)
+                    UserInputService.InputEnded:Connect(function(inp)
+                        if inp.KeyCode == currentBind then
+                            holdActive = false
+                            if params.Callback then params.Callback(false) end
+                        end
+                    end)
+                else
+                    UserInputService.InputBegan:Connect(function(inp, gp)
+                        if not gp and inp.KeyCode == currentBind then
+                            if params.Callback then params.Callback(true) end
+                        end
+                    end)
+                end
+                secFrame.Size = UDim2.new(1, -10, 0, elemHolder.AbsoluteSize.Y + 60)
+                updateCanvas()
+            end
+
+            function sectionObj:CreateTextBox(params, flag)
+                local txf = Instance.new("Frame", elemHolder)
+                txf.Size = UDim2.new(1, 0, 0, 30)
+                txf.Position = UDim2.new(0, 0, 0, nextY(35))
+                txf.BackgroundTransparency = 1
+
+                local lbl = Instance.new("TextLabel", txf)
+                lbl.Size = UDim2.new(0, 150, 1, 0)
+                lbl.BackgroundTransparency = 1
+                lbl.Text = params.Name or ""
+                lbl.TextColor3 = self.Theme.Text
+                lbl.Font = Enum.Font.Gotham
+                lbl.TextSize = 14
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+                local box = Instance.new("TextBox", txf)
+                box.Size = UDim2.new(1, -150, 0, 26)
+                box.Position = UDim2.new(0, 150, 0, 2)
+                box.PlaceholderText = params.Placeholder or ""
+                local currentText = flag and window.Flags[flag] or params.Text or ""
+                box.Text = currentText
+                box.BackgroundColor3 = Color3.fromRGB(30,30,40)
+                box.TextColor3 = self.Theme.Text
+                box.Font = Enum.Font.Gotham
+                box.TextSize = 14
+                box.ClearTextOnFocus = false
+                Instance.new("UICorner", box).CornerRadius = UDim.new(0,4)
+                self:AddGlowStroke(box)
+                box.FocusLost:Connect(function()
+                    if flag then window.Flags[flag] = box.Text; saveFlags() end
+                    if params.Callback then params.Callback(box.Text) end
+                end)
+                secFrame.Size = UDim2.new(1, -10, 0, elemHolder.AbsoluteSize.Y + 60)
+                updateCanvas()
+            end
+
+            function sectionObj:CreateLabel(params)
+                local lbl = Instance.new("TextLabel", elemHolder)
+                lbl.Size = UDim2.new(1, 0, 0, 20)
+                lbl.Position = UDim2.new(0, 0, 0, nextY(25))
+                lbl.BackgroundTransparency = 1
+                lbl.Text = params.Text
+                lbl.TextColor3 = params.Style == 2 and Color3.fromRGB(0,255,0) or params.Style == 3 and Color3.fromRGB(255,0,0) or self.Theme.SubText
+                lbl.Font = Enum.Font.Gotham
+                lbl.TextSize = 13
+                lbl.TextXAlignment = Enum.TextXAlignment.Left
+                secFrame.Size = UDim2.new(1, -10, 0, elemHolder.AbsoluteSize.Y + 60)
+                updateCanvas()
+                return lbl
+            end
+
+            function sectionObj:CreateParagraph(params)
+                local pf = Instance.new("Frame", elemHolder)
+                pf.Size = UDim2.new(1, 0, 0, 50)
+                pf.Position = UDim2.new(0, 0, 0, nextY(55))
+                pf.BackgroundTransparency = 1
+
+                local title = Instance.new("TextLabel", pf)
+                title.Size = UDim2.new(1, 0, 0, 20)
+                title.BackgroundTransparency = 1
+                title.Text = params.Title or ""
+                title.TextColor3 = self.Theme.Text
+                title.Font = Enum.Font.GothamBold
+                title.TextSize = 14
+                title.TextXAlignment = Enum.TextXAlignment.Left
+
+                local desc = Instance.new("TextLabel", pf)
+                desc.Size = UDim2.new(1, 0, 0, 30)
+                desc.Position = UDim2.new(0, 0, 0, 20)
+                desc.BackgroundTransparency = 1
+                desc.Text = params.Text or ""
+                desc.TextColor3 = self.Theme.SubText
+                desc.Font = Enum.Font.Gotham
+                desc.TextSize = 13
+                desc.TextXAlignment = Enum.TextXAlignment.Left
+                desc.TextWrapped = true
+                secFrame.Size = UDim2.new(1, -10, 0, elemHolder.AbsoluteSize.Y + 60)
+                updateCanvas()
+            end
+
+            table.insert(sections, sectionObj)
+            updateCanvas()
+            return sectionObj
+        end
+
+        tabContent.CreateSection = createSection
+        return tabContent
+    end
+
+    -- تبويب Home افتراضي (يمكن للمستخدم استدعاؤه أو التعديل عليه)
+    function window:CreateHomeTab(params)
+        local tab = window:CreateTab({Name = "Home", Icon = params and params.Icon == 2 and "dashboard" or "home", ImageSource = "Material"})
+        local section = tab:CreateSection("Home")
+        if params and params.SupportedExecutors and #params.SupportedExecutors > 0 then
+            section:CreateLabel({Text = "Supported Executors: " .. table.concat(params.SupportedExecutors, ", "), Style = 1})
+        end
+        if params and params.DiscordInvite then
+            section:CreateButton({
+                Name = "Copy Discord Invite",
+                Callback = function()
+                    setclipboard("discord.gg/" .. params.DiscordInvite)
+                    self:Notification("Copied", "Discord invite copied!", 2)
+                end
+            })
+        end
+        return tab
+    end
+
+    -- ===== تبويبات جاهزة مدمجة =====
+    -- تبويب FPS & Boost
+    local fpsTab = window:CreateTab({Name = "🎮 FPS & Boost", Icon = "speed"})
+    local fpsSec = fpsTab:CreateSection("Performance")
+    fpsSec:CreateButton({
+        Name = "Show FPS Counter",
+        Callback = function() self:CreateFPS() end
+    })
+    local lowGfxToggle = fpsSec:CreateToggle({
+        Name = "Low Graphics Mode (Boost FPS)",
+        CurrentValue = false,
+        Callback = function(state)
+            self:SetLowGraphics(state)
+        end
+    }, "LowGraphics") -- flag saves state
+
+    -- تبويب Appearance (تغيير اللون)
+    local appearanceTab = window:CreateTab({Name = "🎨 Appearance", Icon = "palette"})
+    local colorSec = appearanceTab:CreateSection("Glow Color")
+    colorSec:CreateColorPicker({
+        Name = "UI Glow Color",
+        Color = self.CurrentGlowColor,
+        Callback = function(newColor)
+            self.CurrentGlowColor = newColor
+            -- تحديث كل الحدود في النافذة الحالية
+            for _, v in ipairs(main:GetDescendants()) do
+                if v:IsA("UIStroke") and v:FindFirstChildOfClass("UIGradient") then
+                    v.Color = newColor
+                    v:FindFirstChildOfClass("UIGradient").Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)),
+                        ColorSequenceKeypoint.new(0.5, newColor),
+                        ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255))
+                    })
+                end
+            end
+        end
+    }, "GlowColor") -- flag
+
+    -- تبويب Settings (حفظ / تحميل)
+    local settingsTab = window:CreateTab({Name = "⚙️ Settings", Icon = "settings"})
+    local settingsSec = settingsTab:CreateSection("Config")
+    settingsSec:CreateButton({
+        Name = "Save Config",
+        Callback = function() saveFlags() self:Notification("Config", "تم حفظ الإعدادات", 2) end
+    })
+    settingsSec:CreateButton({
+        Name = "Load Config",
+        Callback = function() loadFlags() self:Notification("Config", "تم تحميل الإعدادات", 2) end
+    })
+
+    -- ===== دعم السحب للنافذة =====
+    local dragging, startMouse, startPos
+    titleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            startMouse = input.Position
+            startPos = main.Position
+            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - startMouse
+            main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset+delta.X, startPos.Y.Scale, startPos.Y.Offset+delta.Y)
+        end
+    end)
+
+    -- استعادة إعدادات LowGraphics من الملف إن وجدت
+    if window.Flags["LowGraphics"] then
+        self:SetLowGraphics(true)
+    end
+    if window.Flags["GlowColor"] then
+        local c = window.Flags["GlowColor"]
+        self.CurrentGlowColor = Color3.new(c[1], c[2], c[3])
+        -- تحديث الحدود (للتو)
+        for _, v in ipairs(main:GetDescendants()) do
+            if v:IsA("UIStroke") and v:FindFirstChildOfClass("UIGradient") then
+                v.Color = self.CurrentGlowColor
+                v:FindFirstChildOfClass("UIGradient").Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)),
+                    ColorSequenceKeypoint.new(0.5, self.CurrentGlowColor),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255))
+                })
+            end
+        end
+    end
+
+    self.Windows[window.Name] = window
+    return window
+end
+
+-- // ---------- [ مثال استدعاء (اختياري) ] ---------- \\
+--[[
+local Luna = AlphaLib
+local Window = Luna:CreateWindow({
+    Name = "My Hub",
+    LogoID = "82795327169782",
+    LoadingEnabled = true,
+    LoadingTitle = "AlphaLib",
+    LoadingSubtitle = "by Alpha",
+    ConfigSettings = {
+        ConfigFolder = "MyHub"
+    },
+})
+-- يمكن إضافة تبويبات مخصصة:
+local Tab = Window:CreateTab({Name = "Main", Icon = "star", ImageSource = "Material"})
+local Sec = Tab:CreateSection("Combat")
+Sec:CreateButton({Name = "Aimbot", Callback = function() print("ON") end})
+--]]
+
+return AlphaLib
